@@ -152,10 +152,10 @@ function WorksheetTab({onSave,onGen,trialExhausted}) {
     if (!grade||!subject||!topic||trialExhausted) return;
     onGen(); setLoading(true); setOutput(""); setSaveId(null);
     const levelText = level==="all"?"Create THREE versions: INTERVENTION, ON GRADE LEVEL, ENRICHMENT — clearly labeled.":`Create ONE worksheet for ${level==="below"?"INTERVENTION":level==="on"?"ON GRADE LEVEL":"ENRICHMENT"} students.`;
-    const result = await callClaude(`You are a Texas curriculum specialist. Create a differentiated worksheet:
+    const result = await callClaude(const result = await callClaude(`You are a Texas teacher. Create a TEKS-aligned worksheet.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
 ${levelText}
-Each version: header(Name/Date/Period), directions at appropriate level, 8-10 questions(mixed types), word bank where needed, bonus Think Deeper question. TEKS-aligned.`);
+Include: header(Name/Date/Period), directions, 6 questions(mixed types). Be concise.`););
     setOutput(result); setLoading(false);
   };
 
