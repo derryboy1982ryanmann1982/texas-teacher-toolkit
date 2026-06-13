@@ -10,17 +10,14 @@ exports.handler = async function(event, context) {
       body: '',
     };
   }
-
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
-
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json',
   };
-
   try {
     const body = JSON.parse(event.body);
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -31,9 +28,9 @@ exports.handler = async function(event, context) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1800,
-        messages: body.messages,
+        messages: [{ role: 'user', content: body.prompt }],
       }),
     });
     const data = await response.json();
