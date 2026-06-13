@@ -155,7 +155,7 @@ function WorksheetTab({onSave,onGen,trialExhausted}) {
     const result = await callClaude(`You are a Texas teacher. Create a TEKS-aligned worksheet.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
 ${levelText}
-Include: header(Name/Date/Period), directions, 6 questions(mixed types). Be concise.`););
+Include: header(Name/Date/Period), directions, 6 questions(mixed types). Be concise.`);
     setOutput(result); setLoading(false);
   };
 
