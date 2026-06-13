@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Texas Teacher Toolkit — App</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Serif+4:wght@300;400;600&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Source Serif 4', Georgia, serif; background: linear-gradient(135deg, #1a2744 0%, #2d3e6e 100%); min-height: 100vh; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #c0392b; border-radius: 10px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useCallback } = React;
+
+const COLORS = {
+  navy: "#1a2744", rust: "#c0392b", gold: "#d4a017", cream: "#fdf6e3",
+  lightblue: "#e8f0fe", gray: "#6b7280", lightgray: "#f3f4f6", white: "#ffffff",
+};
+
+const GRADE_LEVELS = ["Kindergarten","1st Grade","2nd Grade","3rd Grade","4th Grade","5th Grade","6th Grade","7th Grade","8th Grade","9th Grade","10th Grade","11th Grade","12th Grade"];
+const SUBJECTS = ["English Language Arts","Mathematics","Science","Social Studies","Reading","Writing","History","Geography","Biology","Chemistry","Physics","Algebra I","Algebra II","Geometry","Precalculus","Calculus","US History","World History","Government","Economics","Health","PE","Art","Music"];
+const DURATIONS = ["30 minutes","45 minutes","60 minutes","75 minutes","90 minutes"];
+const TRIAL_LIMIT = 5;
+
+async function callClaude(prompt) {
+  const res = await fetch("/.netlify/functions/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  const data = await res.json();
+  return data.content?.map(b => b.text || "").join("\n") || "No response received.";
+}
+function exportToPDF(content, title) {
+  const win = window.open("", "_blank");
+  if (!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 24px;color:#1a2744;line-height:1.7;}h1{font-size:22px;border-bottom:3px solid #d4a017;padding-bottom:10px;}pre{white-space:pre-wrap;font-family:Georgia,serif;font-size:14px;}@media print{body{margin:20px;}}</style></head><body><h1>Texas Teacher Toolkit — ${title}</h1><p style="background:#fdf6e3;border-left:4px solid #c0392b;padding:10px 16px;font-size:13px;">⭐ TEKS-Aligned | Generated ${new Date().toLocaleDateString()}</p><pre>${content.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</pre><script>window.onload=()=>window.print();<\/script></body></html>`);
+  win.document.close();
+}
+
+function exportToGoogleDocs(content, title) {
+  navigator.clipboard.writeText(`Texas Teacher Toolkit — ${title}\n\nGenerated: ${new Date().toLocaleDateString()}\nAligned to Texas Essential Knowledge and Skills (TEKS)\n\n${content}`);
+  window.open("https://docs.google.com/document/create", "_blank");
+  alert("✅ Content copied!\n\nPaste (Ctrl+V) into the new Google Doc.");
+}
+
+// Shared UI Components
+const Label = ({children}) => <label style={{display:"block",fontFamily:"'Playfair Display',serif",fontSize:13,fontWeight:700,color:COLORS.navy,marginBottom:5,letterSpacing:.5}}>{children}</label>;
+
+const Select = ({value,onChange,options,placeholder}) => (
+  <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1.5px solid #d1d5db",background:COLORS.white,fontFamily:"'Source Serif 4',serif",fontSize:14,color:value?COLORS.navy:COLORS.gray,outline:"none"}}>
+    <option value="">{placeholder}</option>
+    {options.map(o=><option key={o} value={o}>{o}</option>)}
+  </select>
+);
+
+const TextArea = ({value,onChange,placeholder,rows=3}) => (
+  <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1.5px solid #d1d5db",background:COLORS.white,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy,resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+);
+
+const Input = ({value,onChange,placeholder}) => (
+  <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1.5px solid #d1d5db",background:COLORS.white,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy,outline:"none",boxSizing:"border-box"}}/>
+);
+
+const Btn = ({onClick,children,loading,variant="primary",small=false,disabled=false}) => {
+  const base = {padding:small?"7px 14px":"11px 22px",borderRadius:8,border:"none",cursor:loading||disabled?"not-allowed":"pointer",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:small?12:14,transition:"all .2s",opacity:disabled?.5:1};
+  const styles = {primary:{background:COLORS.rust,color:COLORS.white},secondary:{background:COLORS.navy,color:COLORS.white},ghost:{background:"transparent",color:COLORS.navy,border:`1.5px solid ${COLORS.navy}`},gold:{background:COLORS.gold,color:COLORS.navy},green:{background:"#166534",color:COLORS.white}};
+  return <button onClick={onClick} disabled={loading||disabled} style={{...base,...styles[variant]}}>{loading?"Generating…":children}</button>;
+};
+
+const Card = ({children,style={}}) => (
+  <div style={{background:COLORS.white,borderRadius:12,padding:24,boxShadow:"0 2px 12px rgba(26,39,68,.08)",border:"1px solid #e5e7eb",...style}}>{children}</div>
+);
+
+const TEKSBadge = () => (
+  <div style={{display:"inline-flex",alignItems:"center",gap:6,background:COLORS.lightblue,border:"1px solid #93c5fd",borderRadius:20,padding:"4px 12px",fontSize:12,color:"#1e40af",fontFamily:"'Source Serif 4',serif",fontWeight:600,marginBottom:20}}>⭐ Aligned to Texas Essential Knowledge and Skills (TEKS)</div>
+);
+
+const OutputBox = ({content,title,onSave,saved}) => {
+  if (!content) return null;
+  return (
+    <div style={{marginTop:24}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
+        <span style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:16}}>Generated Output</span>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn small variant="ghost" onClick={()=>navigator.clipboard.writeText(content)}>📋 Copy</Btn>
+          <Btn small variant="secondary" onClick={()=>exportToPDF(content,title)}>🖨️ Print</Btn>
+          <Btn small variant="ghost" onClick={()=>exportToGoogleDocs(content,title)}>📝 Google Docs</Btn>
+          <Btn small variant={saved?"green":"gold"} onClick={onSave}>{saved?"✓ Saved":"💾 Save"}</Btn>
+        </div>
+      </div>
+      <div style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:500,overflowY:"auto"}}>{content}</div>
+    </div>
+  );
+};
+
+// Lesson Plan Tab
+function LessonPlanTab({onSave,onGen,trialExhausted}) {
+  const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
+  const [topic,setTopic]=useState(""); const [objective,setObjective]=useState("");
+  const [duration,setDuration]=useState(""); const [output,setOutput]=useState("");
+  const [loading,setLoading]=useState(false); const [saveId,setSaveId]=useState(null);
+
+  const generate = async () => {
+    if (!grade||!subject||!topic||!objective||!duration||trialExhausted) return;
+    onGen(); setLoading(true); setOutput(""); setSaveId(null);
+    const result = await callClaude(`You are an expert Texas public school curriculum specialist. Create a detailed, TEKS-aligned lesson plan:
+Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective} | Duration: ${duration}
+Sections: 1.TEKS Standards 2.I Can Statement 3.Materials 4.Vocabulary(4-5 terms) 5.ENGAGE-Hook 6.EXPLORE-Direct Instruction 7.EXPLAIN-Guided Practice 8.ELABORATE-Independent Practice 9.EVALUATE-Formative Assessment 10.Closure 11.Differentiation(ELL,enrichment,intervention) 12.Homework(optional)
+Be practical, specific, classroom-ready. Use 5E model.`);
+    setOutput(result); setLoading(false);
+  };
+
+  return (
+    <div>
+      <TEKSBadge/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        <div><Label>Grade Level</Label><Select value={grade} onChange={setGrade} options={GRADE_LEVELS} placeholder="Select grade…"/></div>
+        <div><Label>Subject</Label><Select value={subject} onChange={setSubject} options={SUBJECTS} placeholder="Select subject…"/></div>
+        <div><Label>Class Duration</Label><Select value={duration} onChange={setDuration} options={DURATIONS} placeholder="Select duration…"/></div>
+        <div><Label>Topic / Unit</Label><Input value={topic} onChange={setTopic} placeholder="e.g. The Water Cycle, Fractions, Civil War…"/></div>
+      </div>
+      <div style={{marginBottom:20}}><Label>Learning Objective</Label><TextArea value={objective} onChange={setObjective} placeholder="e.g. Students will identify and explain the stages of the water cycle…"/></div>
+      <Btn onClick={generate} loading={loading} disabled={trialExhausted}>✦ Generate Lesson Plan</Btn>
+      <OutputBox content={output} title={`${grade} ${subject} — ${topic} Lesson Plan`} onSave={()=>{const id=onSave({type:"Lesson Plan",grade,subject,topic,content:output,date:new Date().toLocaleDateString()});setSaveId(id);}} saved={!!saveId}/>
+    </div>
+  );
+}
+
+// Worksheet Tab
+function WorksheetTab({onSave,onGen,trialExhausted}) {
+  const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
+  const [topic,setTopic]=useState(""); const [level,setLevel]=useState("all");
+  const [output,setOutput]=useState(""); const [loading,setLoading]=useState(false); const [saveId,setSaveId]=useState(null);
+
+  const levelOptions=[{value:"all",label:"All 3 Levels"},{value:"below",label:"Intervention"},{value:"on",label:"On Grade Level"},{value:"above",label:"Enrichment"}];
+
+  const generate = async () => {
+    if (!grade||!subject||!topic||trialExhausted) return;
+    onGen(); setLoading(true); setOutput(""); setSaveId(null);
+    const levelText = level==="all"?"Create THREE versions: INTERVENTION, ON GRADE LEVEL, ENRICHMENT — clearly labeled.":`Create ONE worksheet for ${level==="below"?"INTERVENTION":level==="on"?"ON GRADE LEVEL":"ENRICHMENT"} students.`;
+    const result = await callClaude(`You are a Texas curriculum specialist. Create a differentiated worksheet:
+Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
+${levelText}
+Each version: header(Name/Date/Period), directions at appropriate level, 8-10 questions(mixed types), word bank where needed, bonus Think Deeper question. TEKS-aligned.`);
+    setOutput(result); setLoading(false);
+  };
+
+  return (
+    <div>
+      <TEKSBadge/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        <div><Label>Grade Level</Label><Select value={grade} onChange={setGrade} options={GRADE_LEVELS} placeholder="Select grade…"/></div>
+        <div><Label>Subject</Label><Select value={subject} onChange={setSubject} options={SUBJECTS} placeholder="Select subject…"/></div>
+      </div>
+      <div style={{marginBottom:16}}><Label>Topic</Label><Input value={topic} onChange={setTopic} placeholder="e.g. Photosynthesis, Linear Equations, Manifest Destiny…"/></div>
+      <div style={{marginBottom:20}}>
+        <Label>Differentiation Level</Label>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {levelOptions.map(opt=>(
+            <button key={opt.value} onClick={()=>setLevel(opt.value)} style={{padding:"8px 16px",borderRadius:20,border:"1.5px solid",borderColor:level===opt.value?COLORS.rust:"#d1d5db",background:level===opt.value?COLORS.rust:COLORS.white,color:level===opt.value?COLORS.white:COLORS.navy,fontFamily:"'Source Serif 4',serif",fontSize:13,cursor:"pointer"}}>{opt.label}</button>
+          ))}
+        </div>
+      </div>
+      <Btn onClick={generate} loading={loading} disabled={trialExhausted}>✦ Generate Worksheet</Btn>
+      <OutputBox content={output} title={`${grade} ${subject} — ${topic} Worksheet`} onSave={()=>{const id=onSave({type:"Worksheet",grade,subject,topic,content:output,date:new Date().toLocaleDateString()});setSaveId(id);}} saved={!!saveId}/>
+    </div>
+  );
+}
+
+// Rubric Tab
+function RubricTab({onSave,onGen,trialExhausted}) {
+  const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
+  const [assignment,setAssignment]=useState(""); const [objective,setObjective]=useState("");
+  const [scale,setScale]=useState("4"); const [output,setOutput]=useState("");
+  const [loading,setLoading]=useState(false); const [saveId,setSaveId]=useState(null);
+
+  const generate = async () => {
+    if (!grade||!subject||!assignment||trialExhausted) return;
+    onGen(); setLoading(true); setOutput(""); setSaveId(null);
+    const result = await callClaude(`You are a Texas assessment specialist. Create a detailed TEKS-aligned rubric:
+Grade: ${grade} | Subject: ${subject} | Assignment: ${assignment}
+${objective?`Objective: ${objective}`:""}
+Scale: ${scale==="100"?"100-point (Exemplary/Proficient/Developing/Beginning)":scale+"-point scale"}
+Include: 1.TEKS standards 2.Rubric table(4-6 criteria × performance levels, specific observable descriptors) 3.Scoring guide/grade conversion 4.Teacher notes on common mistakes 5.Student self-assessment checklist(5 I can checkboxes). Format for printing and student distribution.`);
+    setOutput(result); setLoading(false);
+  };
+
+  return (
+    <div>
+      <TEKSBadge/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        <div><Label>Grade Level</Label><Select value={grade} onChange={setGrade} options={GRADE_LEVELS} placeholder="Select grade…"/></div>
+        <div><Label>Subject</Label><Select value={subject} onChange={setSubject} options={SUBJECTS} placeholder="Select subject…"/></div>
+      </div>
+      <div style={{marginBottom:16}}><Label>Assignment Description</Label><TextArea value={assignment} onChange={setAssignment} placeholder="e.g. 5-paragraph persuasive essay, science lab report, math problem-solving project…"/></div>
+      <div style={{marginBottom:16}}><Label>Learning Objective (optional)</Label><Input value={objective} onChange={setObjective} placeholder="What should students demonstrate?"/></div>
+      <div style={{marginBottom:20}}>
+        <Label>Grading Scale</Label>
+        <div style={{display:"flex",gap:8}}>
+          {["4","5","100"].map(s=>(
+            <button key={s} onClick={()=>setScale(s)} style={{padding:"8px 18px",borderRadius:20,border:"1.5px solid",borderColor:scale===s?COLORS.rust:"#d1d5db",background:scale===s?COLORS.rust:COLORS.white,color:scale===s?COLORS.white:COLORS.navy,fontFamily:"'Source Serif 4',serif",fontSize:13,cursor:"pointer"}}>{s==="100"?"100-Point":`${s}-Point`}</button>
+          ))}
+        </div>
+      </div>
+      <Btn onClick={generate} loading={loading} disabled={trialExhausted}>✦ Generate Rubric</Btn>
+      <OutputBox content={output} title={`${grade} ${subject} — Rubric`} onSave={()=>{const id=onSave({type:"Rubric",grade,subject,topic:assignment.substring(0,40),content:output,date:new Date().toLocaleDateString()});setSaveId(id);}} saved={!!saveId}/>
+    </div>
+  );
+}
+
+// Unit Pack Tab
+function UnitPackTab({onSave,onGen,trialExhausted}) {
+  const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
+  const [topic,setTopic]=useState(""); const [objective,setObjective]=useState("");
+  const [duration,setDuration]=useState(""); const [step,setStep]=useState("idle");
+  const [lesson,setLesson]=useState(""); const [worksheet,setWorksheet]=useState("");
+  const [rubric,setRubric]=useState(""); const [saveId,setSaveId]=useState(null);
+
+  const ready = grade&&subject&&topic&&objective&&duration;
+
+  const generateAll = async () => {
+    if (!ready||trialExhausted) return;
+    setSaveId(null);
+    setStep("lesson"); onGen();
+    const lp = await callClaude(`Texas curriculum specialist. Complete TEKS-aligned 5E lesson plan:
+Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective} | Duration: ${duration}
+Sections: TEKS Standards, I Can statement, Materials, Vocabulary, Engage, Explore, Explain, Elaborate, Evaluate, Closure, Differentiation.`);
+    setLesson(lp);
+    setStep("worksheet"); onGen();
+    const ws = await callClaude(`Texas curriculum specialist. THREE differentiated worksheets (INTERVENTION, ON GRADE LEVEL, ENRICHMENT):
+Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
+Each: header, instructions, 8 questions(mixed types), word bank where needed, bonus question. TEKS-aligned.`);
+    setWorksheet(ws);
+    setStep("rubric"); onGen();
+    const rb = await callClaude(`Texas assessment specialist. Complete 4-point TEKS-aligned rubric:
+Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective}
+Include: TEKS, rubric table(4 criteria × 4 levels), scoring guide, teacher notes, student self-assessment checklist.`);
+    setRubric(rb);
+    setStep("done");
+  };
+
+  const fullPack = lesson&&worksheet&&rubric?`${"═".repeat(60)}\nTEXAS TEACHER TOOLKIT — UNIT PACK\n${grade} ${subject}: ${topic}\nGenerated: ${new Date().toLocaleDateString()}\n${"═".repeat(60)}\n\nLESSON PLAN\n${"─".repeat(60)}\n${lesson}\n\nDIFFERENTIATED WORKSHEETS\n${"─".repeat(60)}\n${worksheet}\n\nRUBRIC\n${"─".repeat(60)}\n${rubric}`:"";
+
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#fdf6e3,#fff9f0)",border:`2px solid ${COLORS.gold}`,borderRadius:12,padding:16,marginBottom:20}}>
+        <p style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:15}}>🎁 Unit Pack Generator</p>
+        <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginTop:6}}>Fill in once — get a complete lesson plan + 3 differentiated worksheets + rubric.</p>
+      </div>
+      <TEKSBadge/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+        <div><Label>Grade Level</Label><Select value={grade} onChange={setGrade} options={GRADE_LEVELS} placeholder="Select grade…"/></div>
+        <div><Label>Subject</Label><Select value={subject} onChange={setSubject} options={SUBJECTS} placeholder="Select subject…"/></div>
+        <div><Label>Class Duration</Label><Select value={duration} onChange={setDuration} options={DURATIONS} placeholder="Select duration…"/></div>
+        <div><Label>Topic / Unit</Label><Input value={topic} onChange={setTopic} placeholder="e.g. The Civil War, Quadratic Functions…"/></div>
+      </div>
+      <div style={{marginBottom:20}}><Label>Learning Objective</Label><TextArea value={objective} onChange={setObjective} placeholder="What will students know and be able to do?"/></div>
+      <Btn onClick={generateAll} loading={step!=="idle"&&step!=="done"} disabled={!ready||trialExhausted} variant="gold">✦ Generate Full Unit Pack (3 Documents)</Btn>
+      {step!=="idle"&&step!=="done"&&(
+        <div style={{marginTop:16,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy}}>
+          ⏳ {step==="lesson"?"Generating Lesson Plan…":step==="worksheet"?"Generating Worksheets…":"Generating Rubric…"}
+        </div>
+      )}
+      {lesson&&(
+        <div style={{marginTop:24}}>
+          {[["📋 Lesson Plan",lesson],["📄 Worksheets",worksheet],["✅ Rubric",rubric]].map(([title,content])=>content?(
+            <details key={title} style={{marginBottom:16}}>
+              <summary style={{cursor:"pointer",fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:15,padding:"10px 0",borderBottom:`2px solid ${COLORS.gold}`}}>{title} ✓</summary>
+              <div style={{background:COLORS.cream,borderRadius:10,padding:16,marginTop:8,fontFamily:"'Source Serif 4',serif",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:360,overflowY:"auto"}}>{content}</div>
+            </details>
+          ):null)}
+          {step==="done"&&fullPack&&(
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+              <Btn small variant="secondary" onClick={()=>exportToPDF(fullPack,`${grade} ${subject} — ${topic} Unit Pack`)}>🖨️ Print Full Pack</Btn>
+              <Btn small variant="ghost" onClick={()=>exportToGoogleDocs(fullPack,`${grade} ${subject} — ${topic} Unit Pack`)}>📝 Google Docs</Btn>
+              <Btn small variant="ghost" onClick={()=>navigator.clipboard.writeText(fullPack)}>📋 Copy All</Btn>
+              <Btn small variant={saveId?"green":"gold"} onClick={()=>{const id=onSave({type:"Unit Pack",grade,subject,topic,content:fullPack,date:new Date().toLocaleDateString()});setSaveId(id);}}>{saveId?"✓ Saved":"💾 Save Pack"}</Btn>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// History Tab
+function HistoryTab({history,onDelete}) {
+  const [viewing,setViewing]=useState(null);
+  const typeColors={"Lesson Plan":"#dbeafe","Worksheet":"#dcfce7","Rubric":"#fce7f3","Unit Pack":"#fef3c7"};
+  const typeText={"Lesson Plan":"#1e40af","Worksheet":"#166534","Rubric":"#9d174d","Unit Pack":"#92400e"};
+
+  if (history.length===0) return (
+    <div style={{textAlign:"center",padding:"40px 20px",color:COLORS.gray}}>
+      <div style={{fontSize:40,marginBottom:12}}>📂</div>
+      <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:COLORS.navy}}>No saved materials yet</p>
+      <p style={{fontFamily:"'Source Serif 4',serif",fontSize:14,marginTop:8}}>Generate and click 💾 Save to store materials here.</p>
+    </div>
+  );
+
+  if (viewing) {
+    const item = history.find(h=>h.id===viewing);
+    return (
+      <div>
+        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+          <Btn small variant="ghost" onClick={()=>setViewing(null)}>← Back</Btn>
+          <Btn small variant="secondary" onClick={()=>exportToPDF(item.content,`${item.grade} ${item.subject}`)}>🖨️ Print</Btn>
+          <Btn small variant="ghost" onClick={()=>exportToGoogleDocs(item.content,`${item.grade} ${item.subject}`)}>📝 Google Docs</Btn>
+          <Btn small variant="ghost" onClick={()=>navigator.clipboard.writeText(item.content)}>📋 Copy</Btn>
+        </div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:16,marginBottom:4}}>{item.grade} {item.subject} — {item.topic}</div>
+        <div style={{fontSize:12,color:COLORS.gray,marginBottom:12}}>Saved {item.date}</div>
+        <div style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,fontFamily:"'Source Serif 4',serif",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:520,overflowY:"auto"}}>{item.content}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginBottom:16}}>{history.length} saved item{history.length!==1?"s":""}</p>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {history.slice().reverse().map(item=>(
+          <div key={item.id} style={{background:COLORS.lightgray,borderRadius:10,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                <span style={{fontSize:11,fontWeight:700,background:typeColors[item.type]||"#f3f4f6",color:typeText[item.type]||COLORS.navy,borderRadius:10,padding:"2px 8px",fontFamily:"'Source Serif 4',serif"}}>{item.type}</span>
+                <span style={{fontSize:12,color:COLORS.gray}}>{item.date}</span>
+              </div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:14}}>{item.grade} {item.subject} — {item.topic}</div>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <Btn small variant="secondary" onClick={()=>setViewing(item.id)}>View</Btn>
+              <Btn small variant="ghost" onClick={()=>onDelete(item.id)}>🗑️</Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  {id:"lesson",label:"📋 Lesson Plan",desc:"5E model, TEKS-aligned"},
+  {id:"worksheet",label:"📄 Worksheets",desc:"3 differentiation levels"},
+  {id:"rubric",label:"✅ Rubric",desc:"4/5/100-point scales"},
+  {id:"unitpack",label:"🎁 Unit Pack",desc:"All 3 in one click"},
+  {id:"history",label:"💾 Saved",desc:"Your materials"},
+];
+
+let nextId = 1;
+
+function App() {
+  const [activeTab,setActiveTab]=useState("lesson");
+  const [history,setHistory]=useState([]);
+  const [genCount,setGenCount]=useState(0);
+  const isPro = false;
+  const trialRemaining = Math.max(0,TRIAL_LIMIT-genCount);
+  const trialExhausted = !isPro && genCount>=TRIAL_LIMIT;
+
+  const incrementGen = useCallback(()=>setGenCount(c=>c+1),[]);
+  const handleSave = useCallback((item)=>{const id=nextId++;setHistory(prev=>[...prev,{...item,id}]);return id;},[]);
+  const handleDelete = useCallback((id)=>setHistory(prev=>prev.filter(h=>h.id!==id)),[]);
+
+  return (
+    <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${COLORS.navy} 0%,#2d3e6e 100%)`,fontFamily:"'Source Serif 4',serif",paddingBottom:60}}>
+      {/* Header */}
+      <div style={{background:`linear-gradient(90deg,${COLORS.navy},#243055)`,borderBottom:`3px solid ${COLORS.gold}`,padding:"24px 32px 20px"}}>
+        <div style={{maxWidth:900,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:6}}>
+            <div style={{borderRadius:10,overflow:"hidden",width:48,height:36,flexShrink:0}}>
+              <svg viewBox="0 0 48 36" xmlns="http://www.w3.org/2000/svg" style={{width:"100%",height:"100%"}}>
+                <rect x="0" y="0" width="19" height="36" fill="#002868"/>
+                <rect x="19" y="0" width="29" height="18" fill="#ffffff"/>
+                <rect x="19" y="18" width="29" height="18" fill="#BF0A30"/>
+                <polygon points="9.5,6 11.1,11.2 16.5,11.2 12.2,14.3 13.8,19.5 9.5,16.4 5.2,19.5 6.8,14.3 2.5,11.2 7.9,11.2" fill="#ffffff"/>
+              </svg>
+            </div>
+            <div>
+              <h1 style={{margin:0,fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:900,color:COLORS.white,letterSpacing:.5,lineHeight:1.1}}>Texas Teacher Toolkit</h1>
+              <p style={{margin:0,color:COLORS.gold,fontSize:12,fontWeight:600,letterSpacing:.8,textTransform:"uppercase"}}>AI-Powered • TEKS-Aligned • Built for Texas Classrooms</p>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginTop:8}}>
+            <p style={{color:"#94a3b8",fontSize:13}}>Generate lesson plans, worksheets, and rubrics instantly.</p>
+            <a href="/" style={{color:COLORS.gold,fontSize:12,fontFamily:"'Source Serif 4',serif"}}>← Back to Home</a>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:900,margin:"0 auto",padding:"0 16px"}}>
+        {/* Trial Banner */}
+        {!isPro&&!trialExhausted&&(
+          <div style={{background:"#fffbeb",border:"1.5px solid #fcd34d",borderRadius:8,padding:"10px 16px",margin:"16px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+            <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#92400e"}}>🎁 Free trial: <strong>{trialRemaining} of {TRIAL_LIMIT} generations remaining</strong></span>
+            <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{background:COLORS.gold,color:COLORS.navy,border:"none",borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Upgrade to Pro — $9.99/mo</a>
+          </div>
+        )}
+        {trialExhausted&&(
+          <div style={{background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,padding:"16px",margin:"16px 0",textAlign:"center"}}>
+            <p style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.rust,fontSize:16,marginBottom:6}}>You've used your 5 free generations!</p>
+            <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginBottom:12}}>Upgrade to Teacher Pro for unlimited lesson plans, worksheets, rubrics, and more.</p>
+            <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{display:"inline-block",background:COLORS.rust,color:COLORS.white,border:"none",borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Upgrade to Teacher Pro — $9.99/mo</a>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,margin:"20px 0 18px"}}>
+          {TABS.map(tab=>(
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:activeTab===tab.id?COLORS.white:"rgba(255,255,255,.08)",border:activeTab===tab.id?`2px solid ${COLORS.gold}`:"2px solid transparent",borderRadius:10,padding:"11px 10px",cursor:"pointer",textAlign:"left",position:"relative"}}>
+              {tab.id==="history"&&history.length>0&&<span style={{position:"absolute",top:6,right:6,background:COLORS.rust,color:COLORS.white,borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 5px"}}>{history.length}</span>}
+              <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:13,color:activeTab===tab.id?COLORS.navy:COLORS.white,marginBottom:2}}>{tab.label}</div>
+              <div style={{fontSize:11,color:activeTab===tab.id?COLORS.gray:"#94a3b8",fontFamily:"'Source Serif 4',serif"}}>{tab.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <Card>
+          <h2 style={{margin:"0 0 18px",fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:COLORS.navy,borderBottom:`2px solid ${COLORS.gold}`,paddingBottom:10}}>
+            {TABS.find(t=>t.id===activeTab)?.label}
+          </h2>
+          {activeTab==="lesson"&&<LessonPlanTab onSave={handleSave} onGen={incrementGen} trialExhausted={trialExhausted}/>}
+          {activeTab==="worksheet"&&<WorksheetTab onSave={handleSave} onGen={incrementGen} trialExhausted={trialExhausted}/>}
+          {activeTab==="rubric"&&<RubricTab onSave={handleSave} onGen={incrementGen} trialExhausted={trialExhausted}/>}
+          {activeTab==="unitpack"&&<UnitPackTab onSave={handleSave} onGen={incrementGen} trialExhausted={trialExhausted}/>}
+          {activeTab==="history"&&<HistoryTab history={history} onDelete={handleDelete}/>}
+        </Card>
+
+        <p style={{textAlign:"center",color:"rgba(255,255,255,.3)",fontSize:11,marginTop:20}}>Texas Teacher Toolkit • TEKS-Aligned • Review all outputs before classroom use</p>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>
