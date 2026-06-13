@@ -117,10 +117,10 @@ function LessonPlanTab({onSave,onGen,trialExhausted}) {
   const generate = async () => {
     if (!grade||!subject||!topic||!objective||!duration||trialExhausted) return;
     onGen(); setLoading(true); setOutput(""); setSaveId(null);
-    const result = await callClaude(`You are an expert Texas public school curriculum specialist. Create a detailed, TEKS-aligned lesson plan:
+    const result = await callClaude(`You are a Texas teacher. Create a TEKS-aligned lesson plan.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective} | Duration: ${duration}
-Sections: 1.TEKS Standards 2.I Can Statement 3.Materials 4.Vocabulary(4-5 terms) 5.ENGAGE-Hook 6.EXPLORE-Direct Instruction 7.EXPLAIN-Guided Practice 8.ELABORATE-Independent Practice 9.EVALUATE-Formative Assessment 10.Closure 11.Differentiation(ELL,enrichment,intervention) 12.Homework(optional)
-Be practical, specific, classroom-ready. Use 5E model.`);
+Include: 1.TEKS Standard 2.I Can Statement 3.Materials(5 items) 4.ENGAGE(2 sentences) 5.EXPLORE(3 steps) 6.EXPLAIN(2 sentences) 7.Assessment(2 sentences)
+Be concise and classroom-ready.`);
     setOutput(result); setLoading(false);
   };
 
