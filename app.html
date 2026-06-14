@@ -242,7 +242,7 @@ function RubricTab({onSave,onGen,trialExhausted}) {
     const result = await callClaude(`You are a Texas assessment specialist. Create a TEKS-aligned rubric.
 Grade: ${grade} | Subject: ${subject} | Assignment: ${assignment}
 ${objective?`Objective: ${objective}`:""}
-Scale: ${scale==="100"?"100-point":"${scale}-point"}
+Scale: ${scale==="100"?"100-point":`${scale}-point`}
 Include: TEKS standard, rubric criteria (4 criteria x performance levels with descriptors), scoring guide. Use ## for section headers. Be concise.`);
     setOutput(result); setLoading(false);
   };
