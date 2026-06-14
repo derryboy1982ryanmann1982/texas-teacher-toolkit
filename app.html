@@ -17,24 +17,39 @@
 body { font-family: 'Source Serif 4', Georgia, serif; background: linear-gradient(135deg, #1a2744 0%, #2d3e6e 100%); min-height: 100vh; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #c0392b; border-radius: 10px; }
+.formatted-output h1 { font-family: 'Playfair Display', serif; font-size: 18px; color: #1a2744; border-bottom: 2px solid #d4a017; padding-bottom: 6px; margin: 18px 0 10px; }
+.formatted-output h2 { font-family: 'Playfair Display', serif; font-size: 15px; color: #1a2744; margin: 14px 0 6px; }
+.formatted-output h3 { font-family: 'Playfair Display', serif; font-size: 13px; color: #c0392b; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: .5px; }
+.formatted-output p { margin: 4px 0 8px; font-size: 14px; line-height: 1.7; }
+.formatted-output ul { padding-left: 20px; margin: 4px 0 10px; }
+.formatted-output li { font-size: 14px; line-height: 1.7; margin-bottom: 2px; }
+.formatted-output strong { color: #1a2744; font-weight: 700; }
+.formatted-output hr { border: none; border-top: 1px solid #d4a017; margin: 14px 0; }
+@media print {
+  body { background: white !important; }
+  .no-print { display: none !important; }
+  .print-area { box-shadow: none !important; border: none !important; max-height: none !important; overflow: visible !important; }
+  .formatted-output h1 { font-size: 16px; }
+  .formatted-output h2 { font-size: 14px; }
+}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-
+ 
 const { useState, useCallback } = React;
-
+ 
 const COLORS = {
   navy: "#1a2744", rust: "#c0392b", gold: "#d4a017", cream: "#fdf6e3",
   lightblue: "#e8f0fe", gray: "#6b7280", lightgray: "#f3f4f6", white: "#ffffff",
 };
-
+ 
 const GRADE_LEVELS = ["Kindergarten","1st Grade","2nd Grade","3rd Grade","4th Grade","5th Grade","6th Grade","7th Grade","8th Grade","9th Grade","10th Grade","11th Grade","12th Grade"];
 const SUBJECTS = ["English Language Arts","Mathematics","Science","Social Studies","Reading","Writing","History","Geography","Biology","Chemistry","Physics","Algebra I","Algebra II","Geometry","Precalculus","Calculus","US History","World History","Government","Economics","Health","PE","Art","Music"];
 const DURATIONS = ["30 minutes","45 minutes","60 minutes","75 minutes","90 minutes"];
 const TRIAL_LIMIT = 5;
-
+ 
 async function callClaude(prompt) {
   const res = await fetch("/.netlify/functions/claude", {
     method: "POST",
@@ -44,58 +59,89 @@ async function callClaude(prompt) {
   const data = await res.json();
   return data.content?.map(b => b.text || "").join("\n") || "No response received.";
 }
+ 
+function formatContent(text) {
+  if (!text) return "";
+  const escaped = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return escaped
+    .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => '<ul>' + m + '</ul>')
+    .replace(/^(\d+)\.\s+(.+)$/gm, '<p><strong>$1.</strong> $2</p>')
+    .replace(/^---+$/gm, '<hr/>')
+    .replace(/\n{2,}/g, '</p><p>')
+    .replace(/^(?!<[hupli]|<\/[hupli])(.+)$/gm, '<p>$1</p>')
+    .replace(/<p><\/p>/g, '');
+}
+ 
 function exportToPDF(content, title) {
   const win = window.open("", "_blank");
   if (!win) return;
-  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 24px;color:#1a2744;line-height:1.7;}h1{font-size:22px;border-bottom:3px solid #d4a017;padding-bottom:10px;}pre{white-space:pre-wrap;font-family:Georgia,serif;font-size:14px;}@media print{body{margin:20px;}}</style></head><body><h1>Texas Teacher Toolkit — ${title}</h1><p style="background:#fdf6e3;border-left:4px solid #c0392b;padding:10px 16px;font-size:13px;">⭐ TEKS-Aligned | Generated ${new Date().toLocaleDateString()}</p><pre>${content.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</pre><script>window.onload=()=>window.print();<\/script></body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>
+    body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 24px;color:#1a2744;line-height:1.7;}
+    h1{font-family:Georgia,serif;font-size:20px;border-bottom:3px solid #d4a017;padding-bottom:8px;margin:20px 0 10px;}
+    h2{font-family:Georgia,serif;font-size:16px;color:#1a2744;margin:16px 0 6px;}
+    h3{font-family:Georgia,serif;font-size:13px;color:#c0392b;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px;}
+    p{font-size:14px;line-height:1.7;margin:4px 0 8px;}
+    ul{padding-left:20px;margin:4px 0 10px;}
+    li{font-size:14px;line-height:1.7;margin-bottom:2px;}
+    strong{font-weight:700;}
+    hr{border:none;border-top:1px solid #d4a017;margin:14px 0;}
+    .header{background:#fdf6e3;border-left:4px solid #c0392b;padding:10px 16px;font-size:13px;margin-bottom:20px;}
+    @media print{body{margin:20px;}}
+  </style></head><body>
+  <h1>Texas Teacher Toolkit — ${title}</h1>
+  <div class="header">⭐ TEKS-Aligned | Generated ${new Date().toLocaleDateString()}</div>
+  ${formatContent(content)}
+  <script>window.onload=()=>window.print();<\/script></body></html>`);
   win.document.close();
 }
-
+ 
 function exportToGoogleDocs(content, title) {
   navigator.clipboard.writeText(`Texas Teacher Toolkit — ${title}\n\nGenerated: ${new Date().toLocaleDateString()}\nAligned to Texas Essential Knowledge and Skills (TEKS)\n\n${content}`);
   window.open("https://docs.google.com/document/create", "_blank");
   alert("✅ Content copied!\n\nPaste (Ctrl+V) into the new Google Doc.");
 }
-
-// Shared UI Components
+ 
 const Label = ({children}) => <label style={{display:"block",fontFamily:"'Playfair Display',serif",fontSize:13,fontWeight:700,color:COLORS.navy,marginBottom:5,letterSpacing:.5}}>{children}</label>;
-
+ 
 const Select = ({value,onChange,options,placeholder}) => (
   <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1.5px solid #d1d5db",background:COLORS.white,fontFamily:"'Source Serif 4',serif",fontSize:14,color:value?COLORS.navy:COLORS.gray,outline:"none"}}>
     <option value="">{placeholder}</option>
     {options.map(o=><option key={o} value={o}>{o}</option>)}
   </select>
 );
-
+ 
 const TextArea = ({value,onChange,placeholder,rows=3}) => (
   <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1.5px solid #d1d5db",background:COLORS.white,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy,resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
 );
-
+ 
 const Input = ({value,onChange,placeholder}) => (
   <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"10px 14px",borderRadius:8,border:"1.5px solid #d1d5db",background:COLORS.white,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy,outline:"none",boxSizing:"border-box"}}/>
 );
-
+ 
 const Btn = ({onClick,children,loading,variant="primary",small=false,disabled=false}) => {
   const base = {padding:small?"7px 14px":"11px 22px",borderRadius:8,border:"none",cursor:loading||disabled?"not-allowed":"pointer",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:small?12:14,transition:"all .2s",opacity:disabled?.5:1};
   const styles = {primary:{background:COLORS.rust,color:COLORS.white},secondary:{background:COLORS.navy,color:COLORS.white},ghost:{background:"transparent",color:COLORS.navy,border:`1.5px solid ${COLORS.navy}`},gold:{background:COLORS.gold,color:COLORS.navy},green:{background:"#166534",color:COLORS.white}};
   return <button onClick={onClick} disabled={loading||disabled} style={{...base,...styles[variant]}}>{loading?"Generating…":children}</button>;
 };
-
+ 
 const Card = ({children,style={}}) => (
   <div style={{background:COLORS.white,borderRadius:12,padding:24,boxShadow:"0 2px 12px rgba(26,39,68,.08)",border:"1px solid #e5e7eb",...style}}>{children}</div>
 );
-
+ 
 const TEKSBadge = () => (
   <div style={{display:"inline-flex",alignItems:"center",gap:6,background:COLORS.lightblue,border:"1px solid #93c5fd",borderRadius:20,padding:"4px 12px",fontSize:12,color:"#1e40af",fontFamily:"'Source Serif 4',serif",fontWeight:600,marginBottom:20}}>⭐ Aligned to Texas Essential Knowledge and Skills (TEKS)</div>
 );
-
-  
-}
+ 
 const OutputBox = ({content,title,onSave,saved}) => {
   if (!content) return null;
   return (
     <div style={{marginTop:24}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
+      <div className="no-print" style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
         <span style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:16}}>Generated Output</span>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <Btn small variant="ghost" onClick={()=>navigator.clipboard.writeText(content)}>📋 Copy</Btn>
@@ -104,27 +150,28 @@ const OutputBox = ({content,title,onSave,saved}) => {
           <Btn small variant={saved?"green":"gold"} onClick={onSave}>{saved?"✓ Saved":"💾 Save"}</Btn>
         </div>
       </div>
-     <div style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,fontFamily:"'Source Serif 4',serif",whiteSpace:"pre-wrap",lineHeight:1.8}}>{content}</div>
-    
+      <div className="print-area formatted-output" style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,maxHeight:500,overflowY:"auto"}} dangerouslySetInnerHTML={{__html:formatContent(content)}}/>
+    </div>
+  );
 };
-
+ 
 // Lesson Plan Tab
 function LessonPlanTab({onSave,onGen,trialExhausted}) {
   const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
   const [topic,setTopic]=useState(""); const [objective,setObjective]=useState("");
   const [duration,setDuration]=useState(""); const [output,setOutput]=useState("");
   const [loading,setLoading]=useState(false); const [saveId,setSaveId]=useState(null);
-
+ 
   const generate = async () => {
     if (!grade||!subject||!topic||!objective||!duration||trialExhausted) return;
     onGen(); setLoading(true); setOutput(""); setSaveId(null);
     const result = await callClaude(`You are a Texas teacher. Create a TEKS-aligned lesson plan.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective} | Duration: ${duration}
 Include: 1.TEKS Standard 2.I Can Statement 3.Materials(5 items) 4.ENGAGE(2 sentences) 5.EXPLORE(3 steps) 6.EXPLAIN(2 sentences) 7.Assessment(2 sentences)
-Be concise and classroom-ready.`);
+Be concise and classroom-ready. Use ## for section headers.`);
     setOutput(result); setLoading(false);
   };
-
+ 
   return (
     <div>
       <TEKSBadge/>
@@ -140,15 +187,15 @@ Be concise and classroom-ready.`);
     </div>
   );
 }
-
+ 
 // Worksheet Tab
 function WorksheetTab({onSave,onGen,trialExhausted}) {
   const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
   const [topic,setTopic]=useState(""); const [level,setLevel]=useState("all");
   const [output,setOutput]=useState(""); const [loading,setLoading]=useState(false); const [saveId,setSaveId]=useState(null);
-
+ 
   const levelOptions=[{value:"all",label:"All 3 Levels"},{value:"below",label:"Intervention"},{value:"on",label:"On Grade Level"},{value:"above",label:"Enrichment"}];
-
+ 
   const generate = async () => {
     if (!grade||!subject||!topic||trialExhausted) return;
     onGen(); setLoading(true); setOutput(""); setSaveId(null);
@@ -156,10 +203,10 @@ function WorksheetTab({onSave,onGen,trialExhausted}) {
     const result = await callClaude(`You are a Texas teacher. Create a TEKS-aligned worksheet.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
 ${levelText}
-Include: header(Name/Date/Period), directions, 6 questions(mixed types). Be concise.`);
+Include: header(Name/Date/Period), directions, 6 questions(mixed types). Be concise. Use ## for section headers.`);
     setOutput(result); setLoading(false);
   };
-
+ 
   return (
     <div>
       <TEKSBadge/>
@@ -181,25 +228,25 @@ Include: header(Name/Date/Period), directions, 6 questions(mixed types). Be conc
     </div>
   );
 }
-
+ 
 // Rubric Tab
 function RubricTab({onSave,onGen,trialExhausted}) {
   const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
   const [assignment,setAssignment]=useState(""); const [objective,setObjective]=useState("");
   const [scale,setScale]=useState("4"); const [output,setOutput]=useState("");
   const [loading,setLoading]=useState(false); const [saveId,setSaveId]=useState(null);
-
+ 
   const generate = async () => {
     if (!grade||!subject||!assignment||trialExhausted) return;
     onGen(); setLoading(true); setOutput(""); setSaveId(null);
-    const result = await callClaude(`You are a Texas assessment specialist. Create a detailed TEKS-aligned rubric:
+    const result = await callClaude(`You are a Texas assessment specialist. Create a TEKS-aligned rubric.
 Grade: ${grade} | Subject: ${subject} | Assignment: ${assignment}
 ${objective?`Objective: ${objective}`:""}
-Scale: ${scale==="100"?"100-point (Exemplary/Proficient/Developing/Beginning)":scale+"-point scale"}
-Include: 1.TEKS standards 2.Rubric table(4-6 criteria × performance levels, specific observable descriptors) 3.Scoring guide/grade conversion 4.Teacher notes on common mistakes 5.Student self-assessment checklist(5 I can checkboxes). Format for printing and student distribution.`);
+Scale: ${scale==="100"?"100-point":"${scale}-point"}
+Include: TEKS standard, rubric criteria (4 criteria x performance levels with descriptors), scoring guide. Use ## for section headers. Be concise.`);
     setOutput(result); setLoading(false);
   };
-
+ 
   return (
     <div>
       <TEKSBadge/>
@@ -222,7 +269,7 @@ Include: 1.TEKS standards 2.Rubric table(4-6 criteria × performance levels, spe
     </div>
   );
 }
-
+ 
 // Unit Pack Tab
 function UnitPackTab({onSave,onGen,trialExhausted}) {
   const [grade,setGrade]=useState(""); const [subject,setSubject]=useState("");
@@ -230,37 +277,37 @@ function UnitPackTab({onSave,onGen,trialExhausted}) {
   const [duration,setDuration]=useState(""); const [step,setStep]=useState("idle");
   const [lesson,setLesson]=useState(""); const [worksheet,setWorksheet]=useState("");
   const [rubric,setRubric]=useState(""); const [saveId,setSaveId]=useState(null);
-
+ 
   const ready = grade&&subject&&topic&&objective&&duration;
-
+ 
   const generateAll = async () => {
     if (!ready||trialExhausted) return;
     setSaveId(null);
     setStep("lesson"); onGen();
-    const lp = await callClaude(`Texas curriculum specialist. Complete TEKS-aligned 5E lesson plan:
+    const lp = await callClaude(`Texas teacher. TEKS-aligned lesson plan.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective} | Duration: ${duration}
-Sections: TEKS Standards, I Can statement, Materials, Vocabulary, Engage, Explore, Explain, Elaborate, Evaluate, Closure, Differentiation.`);
+Include: TEKS Standard, I Can Statement, Materials, Engage, Explore, Explain, Assessment. Use ## for headers. Be concise.`);
     setLesson(lp);
     setStep("worksheet"); onGen();
-    const ws = await callClaude(`Texas curriculum specialist. THREE differentiated worksheets (INTERVENTION, ON GRADE LEVEL, ENRICHMENT):
+    const ws = await callClaude(`Texas teacher. TEKS-aligned worksheet.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
-Each: header, instructions, 8 questions(mixed types), word bank where needed, bonus question. TEKS-aligned.`);
+Create ONE on-grade-level worksheet: header, directions, 6 questions(mixed types). Use ## for headers. Be concise.`);
     setWorksheet(ws);
     setStep("rubric"); onGen();
-    const rb = await callClaude(`Texas assessment specialist. Complete 4-point TEKS-aligned rubric:
+    const rb = await callClaude(`Texas teacher. TEKS-aligned 4-point rubric.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic} | Objective: ${objective}
-Include: TEKS, rubric table(4 criteria × 4 levels), scoring guide, teacher notes, student self-assessment checklist.`);
+Include: TEKS, 4 criteria x 4 performance levels. Use ## for headers. Be concise.`);
     setRubric(rb);
     setStep("done");
   };
-
+ 
   const fullPack = lesson&&worksheet&&rubric?`${"═".repeat(60)}\nTEXAS TEACHER TOOLKIT — UNIT PACK\n${grade} ${subject}: ${topic}\nGenerated: ${new Date().toLocaleDateString()}\n${"═".repeat(60)}\n\nLESSON PLAN\n${"─".repeat(60)}\n${lesson}\n\nDIFFERENTIATED WORKSHEETS\n${"─".repeat(60)}\n${worksheet}\n\nRUBRIC\n${"─".repeat(60)}\n${rubric}`:"";
-
+ 
   return (
     <div>
       <div style={{background:"linear-gradient(135deg,#fdf6e3,#fff9f0)",border:`2px solid ${COLORS.gold}`,borderRadius:12,padding:16,marginBottom:20}}>
         <p style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:15}}>🎁 Unit Pack Generator</p>
-        <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginTop:6}}>Fill in once — get a complete lesson plan + 3 differentiated worksheets + rubric.</p>
+        <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginTop:6}}>Fill in once — get a complete lesson plan + worksheet + rubric.</p>
       </div>
       <TEKSBadge/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
@@ -273,15 +320,15 @@ Include: TEKS, rubric table(4 criteria × 4 levels), scoring guide, teacher note
       <Btn onClick={generateAll} loading={step!=="idle"&&step!=="done"} disabled={!ready||trialExhausted} variant="gold">✦ Generate Full Unit Pack (3 Documents)</Btn>
       {step!=="idle"&&step!=="done"&&(
         <div style={{marginTop:16,fontFamily:"'Source Serif 4',serif",fontSize:14,color:COLORS.navy}}>
-          ⏳ {step==="lesson"?"Generating Lesson Plan…":step==="worksheet"?"Generating Worksheets…":"Generating Rubric…"}
+          ⏳ {step==="lesson"?"Generating Lesson Plan…":step==="worksheet"?"Generating Worksheet…":"Generating Rubric…"}
         </div>
       )}
       {lesson&&(
         <div style={{marginTop:24}}>
-          {[["📋 Lesson Plan",lesson],["📄 Worksheets",worksheet],["✅ Rubric",rubric]].map(([title,content])=>content?(
+          {[["📋 Lesson Plan",lesson],["📄 Worksheet",worksheet],["✅ Rubric",rubric]].map(([title,content])=>content?(
             <details key={title} style={{marginBottom:16}}>
               <summary style={{cursor:"pointer",fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:15,padding:"10px 0",borderBottom:`2px solid ${COLORS.gold}`}}>{title} ✓</summary>
-              <div style={{background:COLORS.cream,borderRadius:10,padding:16,marginTop:8,fontFamily:"'Source Serif 4',serif",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:360,overflowY:"auto"}}>{content}</div>
+              <div className="formatted-output" style={{background:COLORS.cream,borderRadius:10,padding:16,marginTop:8,maxHeight:360,overflowY:"auto"}} dangerouslySetInnerHTML={{__html:formatContent(content)}}/>
             </details>
           ):null)}
           {step==="done"&&fullPack&&(
@@ -297,13 +344,13 @@ Include: TEKS, rubric table(4 criteria × 4 levels), scoring guide, teacher note
     </div>
   );
 }
-
+ 
 // History Tab
 function HistoryTab({history,onDelete}) {
   const [viewing,setViewing]=useState(null);
   const typeColors={"Lesson Plan":"#dbeafe","Worksheet":"#dcfce7","Rubric":"#fce7f3","Unit Pack":"#fef3c7"};
   const typeText={"Lesson Plan":"#1e40af","Worksheet":"#166534","Rubric":"#9d174d","Unit Pack":"#92400e"};
-
+ 
   if (history.length===0) return (
     <div style={{textAlign:"center",padding:"40px 20px",color:COLORS.gray}}>
       <div style={{fontSize:40,marginBottom:12}}>📂</div>
@@ -311,12 +358,12 @@ function HistoryTab({history,onDelete}) {
       <p style={{fontFamily:"'Source Serif 4',serif",fontSize:14,marginTop:8}}>Generate and click 💾 Save to store materials here.</p>
     </div>
   );
-
+ 
   if (viewing) {
     const item = history.find(h=>h.id===viewing);
     return (
       <div>
-        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        <div className="no-print" style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
           <Btn small variant="ghost" onClick={()=>setViewing(null)}>← Back</Btn>
           <Btn small variant="secondary" onClick={()=>exportToPDF(item.content,`${item.grade} ${item.subject}`)}>🖨️ Print</Btn>
           <Btn small variant="ghost" onClick={()=>exportToGoogleDocs(item.content,`${item.grade} ${item.subject}`)}>📝 Google Docs</Btn>
@@ -324,11 +371,11 @@ function HistoryTab({history,onDelete}) {
         </div>
         <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.navy,fontSize:16,marginBottom:4}}>{item.grade} {item.subject} — {item.topic}</div>
         <div style={{fontSize:12,color:COLORS.gray,marginBottom:12}}>Saved {item.date}</div>
-        <div style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,fontFamily:"'Source Serif 4',serif",fontSize:13,lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:520,overflowY:"auto"}}>{item.content}</div>
+        <div className="formatted-output print-area" style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,maxHeight:520,overflowY:"auto"}} dangerouslySetInnerHTML={{__html:formatContent(item.content)}}/>
       </div>
     );
   }
-
+ 
   return (
     <div>
       <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginBottom:16}}>{history.length} saved item{history.length!==1?"s":""}</p>
@@ -352,7 +399,7 @@ function HistoryTab({history,onDelete}) {
     </div>
   );
 }
-
+ 
 const TABS = [
   {id:"lesson",label:"📋 Lesson Plan",desc:"5E model, TEKS-aligned"},
   {id:"worksheet",label:"📄 Worksheets",desc:"3 differentiation levels"},
@@ -360,9 +407,9 @@ const TABS = [
   {id:"unitpack",label:"🎁 Unit Pack",desc:"All 3 in one click"},
   {id:"history",label:"💾 Saved",desc:"Your materials"},
 ];
-
+ 
 let nextId = 1;
-
+ 
 function App() {
   const [activeTab,setActiveTab]=useState("lesson");
   const [history,setHistory]=useState([]);
@@ -370,14 +417,13 @@ function App() {
   const isPro = false;
   const trialRemaining = Math.max(0,TRIAL_LIMIT-genCount);
   const trialExhausted = !isPro && genCount>=TRIAL_LIMIT;
-
+ 
   const incrementGen = useCallback(()=>setGenCount(c=>c+1),[]);
   const handleSave = useCallback((item)=>{const id=nextId++;setHistory(prev=>[...prev,{...item,id}]);return id;},[]);
   const handleDelete = useCallback((id)=>setHistory(prev=>prev.filter(h=>h.id!==id)),[]);
-
+ 
   return (
     <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${COLORS.navy} 0%,#2d3e6e 100%)`,fontFamily:"'Source Serif 4',serif",paddingBottom:60}}>
-      {/* Header */}
       <div style={{background:`linear-gradient(90deg,${COLORS.navy},#243055)`,borderBottom:`3px solid ${COLORS.gold}`,padding:"24px 32px 20px"}}>
         <div style={{maxWidth:900,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:6}}>
@@ -400,9 +446,8 @@ function App() {
           </div>
         </div>
       </div>
-
+ 
       <div style={{maxWidth:900,margin:"0 auto",padding:"0 16px"}}>
-        {/* Trial Banner */}
         {!isPro&&!trialExhausted&&(
           <div style={{background:"#fffbeb",border:"1.5px solid #fcd34d",borderRadius:8,padding:"10px 16px",margin:"16px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
             <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#92400e"}}>🎁 Free trial: <strong>{trialRemaining} of {TRIAL_LIMIT} generations remaining</strong></span>
@@ -416,8 +461,7 @@ function App() {
             <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{display:"inline-block",background:COLORS.rust,color:COLORS.white,border:"none",borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Upgrade to Teacher Pro — $9.99/mo</a>
           </div>
         )}
-
-        {/* Tabs */}
+ 
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,margin:"20px 0 18px"}}>
           {TABS.map(tab=>(
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:activeTab===tab.id?COLORS.white:"rgba(255,255,255,.08)",border:activeTab===tab.id?`2px solid ${COLORS.gold}`:"2px solid transparent",borderRadius:10,padding:"11px 10px",cursor:"pointer",textAlign:"left",position:"relative"}}>
@@ -427,8 +471,7 @@ function App() {
             </button>
           ))}
         </div>
-
-        {/* Content */}
+ 
         <Card>
           <h2 style={{margin:"0 0 18px",fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:COLORS.navy,borderBottom:`2px solid ${COLORS.gold}`,paddingBottom:10}}>
             {TABS.find(t=>t.id===activeTab)?.label}
@@ -439,14 +482,15 @@ function App() {
           {activeTab==="unitpack"&&<UnitPackTab onSave={handleSave} onGen={incrementGen} trialExhausted={trialExhausted}/>}
           {activeTab==="history"&&<HistoryTab history={history} onDelete={handleDelete}/>}
         </Card>
-
+ 
         <p style={{textAlign:"center",color:"rgba(255,255,255,.3)",fontSize:11,marginTop:20}}>Texas Teacher Toolkit • TEKS-Aligned • Review all outputs before classroom use</p>
       </div>
     </div>
   );
 }
-
+ 
 ReactDOM.render(<App/>, document.getElementById('root'));
 </script>
 </body>
 </html>
+ 
