@@ -62,7 +62,7 @@ async function callClaude(prompt) {
  
 function formatContent(text) {
   if (!text) return "";
-  const escaped = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const escaped = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\\?_+/g, '<span style="display:inline-block;border-bottom:1px solid #1a2744;min-width:120px;">&nbsp;</span>');
   return escaped
     .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
     .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
