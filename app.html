@@ -49,6 +49,15 @@ const GRADE_LEVELS = ["Kindergarten","1st Grade","2nd Grade","3rd Grade","4th Gr
 const SUBJECTS = ["English Language Arts","Mathematics","Science","Social Studies","Reading","Writing","History","Geography","Biology","Chemistry","Physics","Algebra I","Algebra II","Geometry","Precalculus","Calculus","US History","World History","Government","Economics","Health","PE","Art","Music"];
 const DURATIONS = ["30 minutes","45 minutes","60 minutes","75 minutes","90 minutes"];
 const TRIAL_LIMIT = 5;
+const PRO_CODE = "TXTEACHER2025";
+ 
+function checkProStatus() {
+  if (new URLSearchParams(window.location.search).get('pro') === 'true') {
+    localStorage.setItem('ttt_pro', 'true');
+    return true;
+  }
+  return localStorage.getItem('ttt_pro') === 'true';
+}
  
 async function callClaude(prompt) {
   const res = await fetch("/.netlify/functions/claude", {
@@ -72,11 +81,11 @@ function formatContent(text) {
     .replace(/(<li>.*<\/li>\n?)+/g, m => '<ul>' + m + '</ul>')
     .replace(/^(\d+)\.\s+(.+)$/gm, '<p><strong>$1.</strong> $2</p>')
     .replace(/^---+$/gm, '<hr/>')
-.replace(/^\|(.+)\|$/gm, (match) => {
-  const cells = match.split('|').filter(c => c.trim() && !c.match(/^[-\s]+$/));
-  return '<tr>' + cells.map(c => `<td style="border:1px solid #d4a017;padding:6px 10px;font-size:13px;">${c.trim()}</td>`).join('') + '</tr>';
-})
-.replace(/(<tr>.*<\/tr>\n?)+/g, m => `<table style="width:100%;border-collapse:collapse;margin:10px 0;">${m}</table>`)
+    .replace(/^\|(.+)\|$/gm, (match) => {
+      const cells = match.split('|').filter(c => c.trim() && !c.match(/^[-\s]+$/));
+      return '<tr>' + cells.map(c => `<td style="border:1px solid #d4a017;padding:6px 10px;font-size:13px;">${c.trim()}</td>`).join('') + '</tr>';
+    })
+    .replace(/(<tr>.*<\/tr>\n?)+/g, m => `<table style="width:100%;border-collapse:collapse;margin:10px 0;">${m}</table>`)
     .replace(/\n{2,}/g, '</p><p>')
     .replace(/^(?!<[hupli]|<\/[hupli])(.+)$/gm, '<p>$1</p>')
     .replace(/<p><\/p>/g, '');
@@ -141,6 +150,30 @@ const Card = ({children,style={}}) => (
 const TEKSBadge = () => (
   <div style={{display:"inline-flex",alignItems:"center",gap:6,background:COLORS.lightblue,border:"1px solid #93c5fd",borderRadius:20,padding:"4px 12px",fontSize:12,color:"#1e40af",fontFamily:"'Source Serif 4',serif",fontWeight:600,marginBottom:20}}>⭐ Aligned to Texas Essential Knowledge and Skills (TEKS)</div>
 );
+ 
+function ProCodeBox({onUnlock}) {
+  const [code,setCode]=useState("");
+  const [error,setError]=useState("");
+  const attempt = () => {
+    if (code.trim().toUpperCase() === PRO_CODE) {
+      localStorage.setItem('ttt_pro','true');
+      onUnlock();
+    } else {
+      setError("Invalid code. Please check your email and try again.");
+    }
+  };
+  return (
+    <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:10,padding:20,margin:"16px 0"}}>
+      <p style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:"#166534",fontSize:15,marginBottom:6}}>🎉 Welcome! Enter your Pro access code</p>
+      <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginBottom:12}}>Check your email for your access code and enter it below to unlock unlimited generations.</p>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <input value={code} onChange={e=>setCode(e.target.value)} placeholder="Enter access code…" style={{flex:1,padding:"10px 14px",borderRadius:8,border:"1.5px solid #86efac",fontFamily:"'Source Serif 4',serif",fontSize:14,outline:"none"}}/>
+        <Btn onClick={attempt} variant="primary">Unlock Pro</Btn>
+      </div>
+      {error&&<p style={{color:COLORS.rust,fontSize:13,marginTop:8,fontFamily:"'Source Serif 4',serif"}}>{error}</p>}
+    </div>
+  );
+}
  
 const OutputBox = ({content,title,onSave,saved}) => {
   if (!content) return null;
@@ -306,7 +339,7 @@ Include: TEKS, 4 criteria x 4 performance levels. Use ## for headers. Be concise
     setStep("done");
   };
  
-  const fullPack = lesson&&worksheet&&rubric?`${"═".repeat(60)}\nTEXAS TEACHER TOOLKIT — UNIT PACK\n${grade} ${subject}: ${topic}\nGenerated: ${new Date().toLocaleDateString()}\n${"═".repeat(60)}\n\nLESSON PLAN\n${"─".repeat(60)}\n${lesson}\n\nDIFFERENTIATED WORKSHEETS\n${"─".repeat(60)}\n${worksheet}\n\nRUBRIC\n${"─".repeat(60)}\n${rubric}`:"";
+  const fullPack = lesson&&worksheet&&rubric?`${"═".repeat(60)}\nTEXAS TEACHER TOOLKIT — UNIT PACK\n${grade} ${subject}: ${topic}\nGenerated: ${new Date().toLocaleDateString()}\n${"═".repeat(60)}\n\nLESSON PLAN\n${"─".repeat(60)}\n${lesson}\n\nWORKSHEET\n${"─".repeat(60)}\n${worksheet}\n\nRUBRIC\n${"─".repeat(60)}\n${rubric}`:"";
  
   return (
     <div>
@@ -419,13 +452,15 @@ function App() {
   const [activeTab,setActiveTab]=useState("lesson");
   const [history,setHistory]=useState([]);
   const [genCount,setGenCount]=useState(0);
-  const isPro = new URLSearchParams(window.location.search).get('pro') === 'true';
+  const [isPro,setIsPro]=useState(checkProStatus);
+  const showCodeBox = new URLSearchParams(window.location.search).get('pro') === 'true' && !localStorage.getItem('ttt_pro');
   const trialRemaining = Math.max(0,TRIAL_LIMIT-genCount);
   const trialExhausted = !isPro && genCount>=TRIAL_LIMIT;
  
   const incrementGen = useCallback(()=>setGenCount(c=>c+1),[]);
   const handleSave = useCallback((item)=>{const id=nextId++;setHistory(prev=>[...prev,{...item,id}]);return id;},[]);
   const handleDelete = useCallback((id)=>setHistory(prev=>prev.filter(h=>h.id!==id)),[]);
+  const handleUnlock = useCallback(()=>setIsPro(true),[]);
  
   return (
     <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${COLORS.navy} 0%,#2d3e6e 100%)`,fontFamily:"'Source Serif 4',serif",paddingBottom:60}}>
@@ -453,23 +488,33 @@ function App() {
       </div>
  
       <div style={{maxWidth:900,margin:"0 auto",padding:"0 16px"}}>
-        {!isPro&&!trialExhausted&&(
+ 
+        {isPro&&(
+          <div style={{background:"#f0fdf4",border:"1.5px solid #86efac",borderRadius:8,padding:"10px 16px",margin:"16px 0"}}>
+            <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#166534"}}>✅ <strong>Teacher Pro</strong> — Unlimited generations active</span>
+          </div>
+        )}
+ 
+        {!isPro&&showCodeBox&&<div style={{maxWidth:900,margin:"0 auto"}}><ProCodeBox onUnlock={handleUnlock}/></div>}
+ 
+        {!isPro&&!trialExhausted&&!showCodeBox&&(
           <div style={{background:"#fffbeb",border:"1.5px solid #fcd34d",borderRadius:8,padding:"10px 16px",margin:"16px 0"}}>
-  <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#92400e"}}>🎁 Free trial: <strong>{trialRemaining} of {TRIAL_LIMIT} generations remaining</strong></span>
-  <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-    <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{background:COLORS.gold,color:COLORS.navy,borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Monthly — $9.99/mo</a>
-    <a href="https://buy.stripe.com/00w5kC49g1p0dRjfrK6Na03" style={{background:COLORS.navy,color:COLORS.white,borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Annual — $84/yr (save 30%)</a>
-  </div>
-</div>
+            <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#92400e"}}>🎁 Free trial: <strong>{trialRemaining} of {TRIAL_LIMIT} generations remaining</strong></span>
+            <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+              <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{background:COLORS.gold,color:COLORS.navy,borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Monthly — $9.99/mo</a>
+              <a href="https://buy.stripe.com/00w5kC49g1p0dRjfrK6Na03" style={{background:COLORS.navy,color:COLORS.white,borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Annual — $84/yr (save 30%)</a>
+            </div>
+          </div>
         )}
         {trialExhausted&&(
           <div style={{background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,padding:"16px",margin:"16px 0",textAlign:"center"}}>
             <p style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.rust,fontSize:16,marginBottom:6}}>You've used your 5 free generations!</p>
             <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginBottom:12}}>Upgrade to Teacher Pro for unlimited lesson plans, worksheets, rubrics, and more.</p>
             <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
-  <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{display:"inline-block",background:COLORS.rust,color:COLORS.white,borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Monthly — $9.99/mo</a>
-  <a href="https://buy.stripe.com/00w5kC49g1p0dRjfrK6Na03" style={{display:"inline-block",background:COLORS.navy,color:COLORS.white,borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Annual — $84/yr (save 30%)</a>
-</div>
+              <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{display:"inline-block",background:COLORS.rust,color:COLORS.white,borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Monthly — $9.99/mo</a>
+              <a href="https://buy.stripe.com/00w5kC49g1p0dRjfrK6Na03" style={{display:"inline-block",background:COLORS.navy,color:COLORS.white,borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Annual — $84/yr (save 30%)</a>
+            </div>
+            {!isPro&&<div style={{marginTop:16}}><ProCodeBox onUnlock={handleUnlock}/></div>}
           </div>
         )}
  
@@ -504,4 +549,3 @@ ReactDOM.render(<App/>, document.getElementById('root'));
 </script>
 </body>
 </html>
- 
