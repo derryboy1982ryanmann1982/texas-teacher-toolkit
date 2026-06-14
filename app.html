@@ -296,7 +296,7 @@ Include: TEKS Standard, I Can Statement, Materials, Engage, Explore, Explain, As
     setStep("worksheet"); onGen();
     const ws = await callClaude(`Texas teacher. TEKS-aligned worksheet.
 Grade: ${grade} | Subject: ${subject} | Topic: ${topic}
-Create ONE on-grade-level worksheet: header, directions, 6 questions(mixed types). Use ## for headers. Be concise.`);
+Create ONE on-grade-level worksheet: header(Name/Date/Class), directions, 6 questions(mixed types including multiple choice, fill-in-blank, short answer). Use ## for headers. No ASCII diagrams or code blocks. Be concise.`);
     setWorksheet(ws);
     setStep("rubric"); onGen();
     const rb = await callClaude(`Texas teacher. TEKS-aligned 4-point rubric.
