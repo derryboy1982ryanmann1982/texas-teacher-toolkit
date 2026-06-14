@@ -72,6 +72,11 @@ function formatContent(text) {
     .replace(/(<li>.*<\/li>\n?)+/g, m => '<ul>' + m + '</ul>')
     .replace(/^(\d+)\.\s+(.+)$/gm, '<p><strong>$1.</strong> $2</p>')
     .replace(/^---+$/gm, '<hr/>')
+.replace(/^\|(.+)\|$/gm, (match) => {
+  const cells = match.split('|').filter(c => c.trim() && !c.match(/^[-\s]+$/));
+  return '<tr>' + cells.map(c => `<td style="border:1px solid #d4a017;padding:6px 10px;font-size:13px;">${c.trim()}</td>`).join('') + '</tr>';
+})
+.replace(/(<tr>.*<\/tr>\n?)+/g, m => `<table style="width:100%;border-collapse:collapse;margin:10px 0;">${m}</table>`)
     .replace(/\n{2,}/g, '</p><p>')
     .replace(/^(?!<[hupli]|<\/[hupli])(.+)$/gm, '<p>$1</p>')
     .replace(/<p><\/p>/g, '');
