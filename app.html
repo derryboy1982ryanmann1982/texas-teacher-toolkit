@@ -449,16 +449,22 @@ function App() {
  
       <div style={{maxWidth:900,margin:"0 auto",padding:"0 16px"}}>
         {!isPro&&!trialExhausted&&(
-          <div style={{background:"#fffbeb",border:"1.5px solid #fcd34d",borderRadius:8,padding:"10px 16px",margin:"16px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-            <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#92400e"}}>🎁 Free trial: <strong>{trialRemaining} of {TRIAL_LIMIT} generations remaining</strong></span>
-            <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{background:COLORS.gold,color:COLORS.navy,border:"none",borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Upgrade to Pro — $9.99/mo</a>
-          </div>
+          <div style={{background:"#fffbeb",border:"1.5px solid #fcd34d",borderRadius:8,padding:"10px 16px",margin:"16px 0"}}>
+  <span style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:"#92400e"}}>🎁 Free trial: <strong>{trialRemaining} of {TRIAL_LIMIT} generations remaining</strong></span>
+  <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+    <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{background:COLORS.gold,color:COLORS.navy,borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Monthly — $9.99/mo</a>
+    <a href="https://buy.stripe.com/00w5kC49g1p0dRjfrK6Na03" style={{background:COLORS.navy,color:COLORS.white,borderRadius:6,padding:"7px 14px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:12,textDecoration:"none"}}>Annual — $84/yr (save 30%)</a>
+  </div>
+</div>
         )}
         {trialExhausted&&(
           <div style={{background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,padding:"16px",margin:"16px 0",textAlign:"center"}}>
             <p style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:COLORS.rust,fontSize:16,marginBottom:6}}>You've used your 5 free generations!</p>
             <p style={{fontFamily:"'Source Serif 4',serif",fontSize:13,color:COLORS.gray,marginBottom:12}}>Upgrade to Teacher Pro for unlimited lesson plans, worksheets, rubrics, and more.</p>
-            <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{display:"inline-block",background:COLORS.rust,color:COLORS.white,border:"none",borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Upgrade to Teacher Pro — $9.99/mo</a>
+            <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
+  <a href="https://buy.stripe.com/4gMeVc6ho1p000t0wQ6Na02" style={{display:"inline-block",background:COLORS.rust,color:COLORS.white,borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Monthly — $9.99/mo</a>
+  <a href="https://buy.stripe.com/00w5kC49g1p0dRjfrK6Na03" style={{display:"inline-block",background:COLORS.navy,color:COLORS.white,borderRadius:8,padding:"12px 28px",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:15,textDecoration:"none"}}>Annual — $84/yr (save 30%)</a>
+</div>
           </div>
         )}
  
