@@ -111,7 +111,7 @@ const OutputBox = ({content,title,onSave,saved}) => {
           <Btn small variant={saved?"green":"gold"} onClick={onSave}>{saved?"✓ Saved":"💾 Save"}</Btn>
         </div>
       </div>
-     <div style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,fontFamily:"'Source Serif 4',serif",whiteSpace:"pre-wrap",lineHeight:1.8}} dangerouslySetInnerHTML={{__html:formatOutput(content)}}/>
+     <div style={{background:COLORS.cream,border:`1.5px solid ${COLORS.gold}`,borderRadius:10,padding:20,fontFamily:"'Source Serif 4',serif",whiteSpace:"pre-wrap",lineHeight:1.8}}>{content}</div>
      );
 };
 
