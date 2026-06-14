@@ -1,3 +1,7 @@
+const rateLimitMap = {};
+const RATE_LIMIT = 10; // max requests
+const WINDOW_MS = 60 * 60 * 1000; // per hour
+
 exports.handler = async function(event, context) {
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -18,6 +22,17 @@ exports.handler = async function(event, context) {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json',
   };
+
+  // Rate limiting
+  const ip = event.headers['x-forwarded-for'] || 'unknown';
+  const now = Date.now();
+  if (!rateLimitMap[ip]) rateLimitMap[ip] = [];
+  rateLimitMap[ip] = rateLimitMap[ip].filter(t => now - t < WINDOW_MS);
+  if (rateLimitMap[ip].length >= RATE_LIMIT) {
+    return { statusCode: 429, headers, body: JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }) };
+  }
+  rateLimitMap[ip].push(now);
+
   try {
     const body = JSON.parse(event.body);
     const response = await fetch('https://api.anthropic.com/v1/messages', {
